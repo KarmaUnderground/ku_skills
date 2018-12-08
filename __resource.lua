@@ -1,6 +1,6 @@
 resource_manifest_version '44febabe-d386-4d18-afbe-5e627f4af937'
 
-description 'ESX Jobs'
+description 'Karma Underground Skills'
 
 version '0.1'
 
@@ -13,7 +13,10 @@ server_scripts {
 
 	'libs/random_normal.lua',
 
-	'server/admin.lua',
+	'config.lua',
+
+	'server/init.lua',
+	'server/callbacks.lua',
 	'server/main.lua',
 }
 

@@ -1,15 +1,6 @@
-TriggerEvent('ku_skills:registerConfigs',{
-    locale = "fr"
-})
+ESX = nil
 
-TriggerEvent('ku_skills:registerSkill', {
-    name = my_skill,
-    rate = 5000,
-},{
-    en = {
-        my_skill = "My skill",
-    },
-    fr = {
-        my_skill = "Ma compétence",
-    }
-})
+TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
+
+--TODO: Check if table exists. If not, create
+math.randomseed(os.time())
