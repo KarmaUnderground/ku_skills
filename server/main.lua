@@ -76,9 +76,12 @@ function get_player_skill(xPlayer, skill_name)
 
         set_player_skill(xPlayer, skill.name, player_skill)
 
-        TriggerClientEvent('esx:showNotification', xPlayer.source, _U("skill_new", _U(name)))
+        if Config.show_notifications then
+            TriggerClientEvent('esx:showNotification', xPlayer.source, _U("skill_added", _U(player_skill.name)))
+        end
 
-        --TODO: Trigger server and client event ku_skills:player_sill_added xPlayer, player_skill
+        TriggerEvent('ku_skills:skillAdded', xPlayer.source, player_skill)
+        TriggerClientEvent('ku_skills:skillAdded', xPlayer.source, player_skill)
     end
 
     return player_skill
@@ -101,6 +104,10 @@ function increase_player_skill_roll(xPlayer, player_skill)
     local roll = math.random(1000) / 10
 
     if player_skill.level < roll then
+        local originals = {
+            tries = player_skill.tries,
+            value = player_skill.value
+        }
         set_player_skill_tries(xPlayer, player_skill, player_skill.tries + 1)
 
         local skills_stats = get_player_skills_stats(xPlayer)
@@ -108,6 +115,14 @@ function increase_player_skill_roll(xPlayer, player_skill)
         if skills_stats.sum > Config.max_skill_sum then
             decrease_random_player_skill(xPlayer, player_skill)
         end
+
+        player_skill = get_player_skill(xPlayer, player_skill.name)
+        if Config.show_notifications then
+            TriggerClientEvent('esx:showNotification', xPlayer.source, _U("skill_increased", _U(player_skill.name), originals.value))
+        end
+
+        TriggerEvent('ku_skills:skillIncreased', xPlayer.source, player_skill, originals)
+        TriggerClientEvent('ku_skills:skillIncreased', xPlayer.source, player_skill, originals)
     end
 end
 
