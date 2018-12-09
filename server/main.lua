@@ -116,9 +116,10 @@ function increase_player_skill_roll(xPlayer, player_skill)
             decrease_random_player_skill(xPlayer, player_skill)
         end
 
+        --TODO: Trigger server and client event ku_skills:player_skill_up xPlayer, player_skill, original_value
         player_skill = get_player_skill(xPlayer, player_skill.name)
         if Config.show_notifications then
-            TriggerClientEvent('esx:showNotification', xPlayer.source, _U("skill_increased", _U(player_skill.name), originals.value))
+            TriggerClientEvent('esx:showNotification', xPlayer.source, _U("skill_increased", _U(player_skill.name), originals.value, player_skill.value))
         end
 
         TriggerEvent('ku_skills:skillIncreased', xPlayer.source, player_skill, originals)
@@ -148,28 +149,42 @@ function decrease_random_player_skill(xPlayer, skill)
             end
         end
 
+        local originals = {
+            tries = player_skill.tries,
+            value = player_skill.value
+        }
+
         --TODO: Is the skills sum still over max?
         set_player_skill_tries(xPlayer, player_skill, player_skill.tries - 1)
 
-        --TODO: Notifies, hooks, ...
+        player_skill = get_player_skill(xPlayer, player_skill.name)
+        if Config.show_notifications then
+            TriggerClientEvent('esx:showNotification', xPlayer.source, _U("skill_decreased", _U(player_skill.name), originals.value, player_skill.value))
+        end
+
+        TriggerEvent('ku_skills:skillRadomDecreased', xPlayer.source, player_skill, originals)
+        TriggerClientEvent('ku_skills:skillRadomDecreased', xPlayer.source, player_skill, originals)
     end
 end
 
 function set_player_skill_tries(xPlayer, player_skill, tries)
-    local original_tries = 0
+    local originals = {
+        tries = player_skill.tries,
+        value = player_skill.value
+    }
+
     if tries <= 0 then
         set_player_skill(xPlayer, player_skill.name, nil)
     else
-        original_tries = player_skill.tries
-
         player_skill.used = true
         player_skill.tries = tries
         player_skill.level = get_skill_level_from_tries(player_skill)
 
         set_player_skill(xPlayer, player_skill.name, player_skill)
-
-        --TODO: Trigger server and client event ku_skills:player_skill_up xPlayer, player_skill, original_value
     end
+
+    TriggerEvent('ku_skills:skillTriesChanged', xPlayer.source, player_skill, originals)
+    TriggerClientEvent('ku_skills:skillTriesChanged', xPlayer.source, player_skill, originals)
 end
 
 function set_player_skill(xPlayer, skill_name, player_skill)
@@ -181,6 +196,13 @@ function set_player_skill(xPlayer, skill_name, player_skill)
             ['@identifire'] = xPlayer.identifier,
             ['@name'] = skill_name
         })
+
+        if Config.show_notifications then
+            TriggerClientEvent('esx:showNotification', xPlayer.source, _U("skill_removed", _U(player_skill.name)))
+        end
+
+        TriggerEvent('ku_skills:skillRemoved', xPlayer.source, player_skill)
+        TriggerClientEvent('ku_skills:skillRemoved', xPlayer.source, player_skill)
     end
 
     if not player_skills then
@@ -220,19 +242,28 @@ function commit_player_skill(xPlayer, player_skill)
             ['@identifier'] = xPlayer.identifier,
             ['@skill_name']   = player_skill.name
         })
+
+        TriggerEvent('ku_skills:skillCommitedToDatabase', xPlayer.source, player_skill)
+        TriggerClientEvent('ku_skills:skillCommitedToDatabase', xPlayer.source, player_skill)
     end
 end
 
 function player_skill_roll(xPlayer, player_skill)
-    local roll_skill = math.random(1000) / 10
-    local result = player_skill.level > roll_skill
+    local result = player_skill.level > math.random(1000) / 10
 
     increase_player_skill_roll(xPlayer, player_skill)
 
-    return result
+    local message = player_skill.name .. (result and "_skill_roll_success" or "_skill_roll_failed")
+    if Config.show_notifications then
+        TriggerClientEvent('esx:showNotification', xPlayer.source, _U(message, _U(player_skill.name)))
+    end
 
-    -- TODO: Notification + Hooks
+    TriggerEvent('ku_skills:skillRolled', xPlayer.source, player_skill, result)
+    TriggerClientEvent('ku_skills:skillRolled', xPlayer.source, player_skill, result)
+
     -- TODO: Ajouter une animation d'exécution, de succès et de fail
+
+    return result
 end
 
 function execute_player_skill(xPlayer, player_skill)
