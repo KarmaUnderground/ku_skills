@@ -10,7 +10,7 @@ function get_skill(skill_name)
     local skill = Skills[skill_name]
 
     if not skill then
-        print(('ku_skills: ERROR: The skill %s has not been registered'):format(skill_name))
+        print(('ku_skills: ERROR: The skill "%s" has not been registered'):format(skill_name))
         return nil
     end
 
@@ -20,6 +20,8 @@ end
 function get_player_skills(xPlayer)
     local player_skills = xPlayer.get('skills')
     local player_skill = nil
+
+    local skills = get_skills()
     local skill = nil
 
     if not player_skills then -- Skills have not been initiated for this player
@@ -31,19 +33,18 @@ function get_player_skills(xPlayer)
         })
 
         for i=1, #result, 1 do
-            skill = get_skill(result[i].name)
+            if skills[result[i].name] then
+                skill = skills[result[i].name]
 
-            player_skill = {
-                rate = skill.rate,
-                name = skill.name,
-                tries = result[i].tries,
-                level = 0,
-                used = false
-            }
-
-            player_skill.level = get_skill_level_from_tries(player_skill),
-            
-            set_player_skill(xPlayer, skill.name, player_skill)
+                player_skill = {
+                    rate = skill.rate,
+                    name = skill.name,
+                    tries = result[i].tries,
+                    used = false
+                }
+                
+                set_player_skill(xPlayer, skill.name, player_skill)
+            end
         end
 
         player_skills = xPlayer.get('skills')
@@ -55,36 +56,34 @@ end
 function get_player_skill(xPlayer, skill_name)
     local skill = get_skill(skill_name)
 
-    local player_skills = get_player_skills(xPlayer)
-    local player_skill = player_skills[skill_name]
+    if skill then
+        local player_skills = get_player_skills(xPlayer)
+        local player_skill = player_skills[skill_name]
 
-    if not player_skill then
-        MySQL.Sync.execute('INSERT INTO `user_skills` (`identifier`, `name`, `tries`) VALUES (@identifire, @skill_name, @tries)',
-        {
-            ['@identifire'] = xPlayer.identifier,
-            ['@skill_name'] = skill.name,
-            ['@tries'] = 0
-        })
+        if not player_skill then
+            MySQL.Sync.execute('INSERT INTO `user_skills` (`identifier`, `name`, `tries`) VALUES (@identifire, @skill_name, @tries)',
+            {
+                ['@identifire'] = xPlayer.identifier,
+                ['@skill_name'] = skill.name,
+                ['@tries'] = 0
+            })
 
-        player_skill = {
-            rate = skill.rate,
-            name = skill.name,
-            tries = 0,
-            level = 0.0,
-            used = false
-        }
+            player_skill = {
+                rate = skill.rate,
+                name = skill.name,
+                tries = 0,
+                level = 0.0,
+                used = false
+            }
 
-        set_player_skill(xPlayer, skill.name, player_skill)
-
-        if Config.show_notifications then
-            TriggerClientEvent('esx:showNotification', xPlayer.source, _U("skill_added", _U(player_skill.name)))
+            set_player_skill(xPlayer, skill.name, player_skill)
+            interaction(xPlayer, 'skillAdded', _U("skill_added", _U(player_skill.name)))
         end
 
-        TriggerEvent('ku_skills:skillAdded', xPlayer.source, player_skill)
-        TriggerClientEvent('ku_skills:skillAdded', xPlayer.source, player_skill)
+        return player_skill
+    else
+        return nil
     end
-
-    return player_skill
 end
 
 function get_player_skills_stats(xPlayer)
@@ -106,7 +105,7 @@ function increase_player_skill_roll(xPlayer, player_skill)
     if player_skill.level < roll then
         local originals = {
             tries = player_skill.tries,
-            value = player_skill.value
+            level = player_skill.level
         }
         set_player_skill_tries(xPlayer, player_skill, player_skill.tries + 1)
 
@@ -118,12 +117,8 @@ function increase_player_skill_roll(xPlayer, player_skill)
 
         --TODO: Trigger server and client event ku_skills:player_skill_up xPlayer, player_skill, original_value
         player_skill = get_player_skill(xPlayer, player_skill.name)
-        if Config.show_notifications then
-            TriggerClientEvent('esx:showNotification', xPlayer.source, _U("skill_increased", _U(player_skill.name), originals.value, player_skill.value))
-        end
 
-        TriggerEvent('ku_skills:skillIncreased', xPlayer.source, player_skill, originals)
-        TriggerClientEvent('ku_skills:skillIncreased', xPlayer.source, player_skill, originals)
+        interaction(xPlayer, 'skillIncreased', _U("skill_increased", _U(player_skill.name), originals.level, player_skill.level))
     end
 end
 
@@ -158,19 +153,15 @@ function decrease_random_player_skill(xPlayer, skill)
         set_player_skill_tries(xPlayer, player_skill, player_skill.tries - 1)
 
         player_skill = get_player_skill(xPlayer, player_skill.name)
-        if Config.show_notifications then
-            TriggerClientEvent('esx:showNotification', xPlayer.source, _U("skill_decreased", _U(player_skill.name), originals.value, player_skill.value))
-        end
 
-        TriggerEvent('ku_skills:skillRadomDecreased', xPlayer.source, player_skill, originals)
-        TriggerClientEvent('ku_skills:skillRadomDecreased', xPlayer.source, player_skill, originals)
+        interaction(xPlayer, 'skillRadomDecreased', _U("skill_decreased", _U(player_skill.name), originals.value, player_skill.value))
     end
 end
 
 function set_player_skill_tries(xPlayer, player_skill, tries)
     local originals = {
         tries = player_skill.tries,
-        value = player_skill.value
+        value = player_skill.level
     }
 
     if tries <= 0 then
@@ -178,13 +169,11 @@ function set_player_skill_tries(xPlayer, player_skill, tries)
     else
         player_skill.used = true
         player_skill.tries = tries
-        player_skill.level = get_skill_level_from_tries(player_skill)
 
         set_player_skill(xPlayer, player_skill.name, player_skill)
     end
 
-    TriggerEvent('ku_skills:skillTriesChanged', xPlayer.source, player_skill, originals)
-    TriggerClientEvent('ku_skills:skillTriesChanged', xPlayer.source, player_skill, originals)
+    interaction(xPlayer, 'skillTriesChanged', nil)
 end
 
 function set_player_skill(xPlayer, skill_name, player_skill)
@@ -197,31 +186,27 @@ function set_player_skill(xPlayer, skill_name, player_skill)
             ['@name'] = skill_name
         })
 
-        if Config.show_notifications then
-            TriggerClientEvent('esx:showNotification', xPlayer.source, _U("skill_removed", _U(player_skill.name)))
-        end
-
-        TriggerEvent('ku_skills:skillRemoved', xPlayer.source, player_skill)
-        TriggerClientEvent('ku_skills:skillRemoved', xPlayer.source, player_skill)
+        interaction(xPlayer, 'skillRemoved', _U("skill_removed", _U(player_skill.name)))
     end
 
     if not player_skills then
         player_skills = {}
     end
 
+    player_skill.level = get_skill_level_from_tries(player_skill)
+
     player_skills[skill_name] = player_skill
     xPlayer.set('skills', player_skills)
 
     commit_player_skills(xPlayer) -- TODO: Where that should be done? Not here!
-    --TODO: Notifies + hooks
 end
 
 function get_skill_level_from_tries(player_skill)
-    --TODO: Try to use math.power()
     local level = 0
 
+    --TODO: Try to use math.power()
     level = math.sqrt((player_skill.rate*player_skill.rate) - ((player_skill.rate - player_skill.tries) * (player_skill.rate - player_skill.tries)))
-    level = ESX.Round(((player_skill.level/player_skill.rate)*100),1)
+    level = ESX.Round(((level/player_skill.rate)*100),1)
 
     return level
 end
@@ -243,8 +228,7 @@ function commit_player_skill(xPlayer, player_skill)
             ['@skill_name']   = player_skill.name
         })
 
-        TriggerEvent('ku_skills:skillCommitedToDatabase', xPlayer.source, player_skill)
-        TriggerClientEvent('ku_skills:skillCommitedToDatabase', xPlayer.source, player_skill)
+        interaction(xPlayer, 'skillCommitedToDatabase', nil)
     end
 end
 
@@ -252,26 +236,53 @@ function player_skill_roll(xPlayer, player_skill)
     local result = player_skill.level > math.random(1000) / 10
 
     increase_player_skill_roll(xPlayer, player_skill)
-
-    local message = player_skill.name .. (result and "_skill_roll_success" or "_skill_roll_failed")
-    if Config.show_notifications then
-        TriggerClientEvent('esx:showNotification', xPlayer.source, _U(message, _U(player_skill.name)))
-    end
-
-    TriggerEvent('ku_skills:skillRolled', xPlayer.source, player_skill, result)
-    TriggerClientEvent('ku_skills:skillRolled', xPlayer.source, player_skill, result)
+    interaction(xPlayer, 'skillRolled', _U(player_skill.name .. (result and "_skill_roll_success" or "_skill_roll_failed")))
 
     -- TODO: Ajouter une animation d'exécution, de succès et de fail
 
     return result
 end
 
+function has_prerequisit_skills(xPlayer, player_skill)
+    local has_skills = true
+    --if not has_prerequisit_skills(xPlayer, player_skill) then
+    --    interaction(xPlayer, 'skillNoPrerequisitSkill', _U("no_prerequisit_skill", _U(player_skill.name)))
+    --end
+
+    return has_skills
+end
+
+function has_prerequisit_items(xPlayer, player_skill)
+    local has_items = true
+--    for index, item in pairs(get_skill(player_skill.name).prerequisites.item) do
+--        if not xPlayer.getInventoryItem(item) then
+--            interaction(xPlayer, 'skillNoPrerequisitItem', _U("no_prerequisit_item", _U(item)))
+--            has_items = false
+--        end
+--    end
+
+    return has_items
+end
+
 function execute_player_skill(xPlayer, player_skill)
-    local success = player_skill_roll(xPlayer, player_skill)
+    local success = false
+    if has_prerequisit_skills(xPlayer, player_skill) and has_prerequisit_items(xPlayer, player_skill) then
+        local success = player_skill_roll(xPlayer, player_skill)
+    end
+
     local player_skills = get_player_skills(xPlayer)
 
     return {
         success = success,
         skill = player_skills[skill_name]
     }
+end
+
+function interaction(xPlayer, callback, message)
+    if Config.show_notifications and message then
+        TriggerClientEvent('esx:showNotification', xPlayer.source, message)
+    end
+
+    TriggerEvent('ku_skills:' .. callback, xPlayer.source, player_skill, prerequisit_item)
+    TriggerClientEvent('ku_skills:' .. callback, xPlayer.source, player_skill, prerequisit_item)
 end

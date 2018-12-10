@@ -1,3 +1,4 @@
+--[[
 ESX = nil
 
 local Keys = { ["K"] = 311, ["LEFTSHIFT"] = 21, ["LEFTCTRL"] = 3 }
@@ -262,3 +263,4 @@ Citizen.CreateThread(function()
 		end
 	end
 end)
+]]

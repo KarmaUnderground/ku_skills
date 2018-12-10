@@ -21,13 +21,13 @@ server_scripts {
 }
 
 client_scripts {
---	'@es_extended/locale.lua',
---	'locales/en.lua',
---	'locales/fr.lua',
---	'config.lua',
+	'@es_extended/locale.lua',
 
---	'jobs/gas.lua',
-	
+	'locales/en.lua',
+	'locales/fr.lua',
+
+	'config.lua',
+
 --	'client/main.lua'
 }
 

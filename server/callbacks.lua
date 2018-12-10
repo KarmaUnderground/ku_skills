@@ -49,17 +49,33 @@ end)
 --[[****************************************************
     The param skill must have this structure:
     {
-        name = my_skill, -- Must be unique. It's the primery key
+        name = "carpenter", -- Must be unique. It's the primery key
         rate = 5000, -- Number of tries to reach 100%
+        prerequisites = {
+            skill = {
+                {
+                    name = "nail", -- Name of a prerequisit skill
+                    level = "25" -- Minimum level that the player must have of that skill to use the main skill
+                }
+            },
+            item = {
+                "hammer", -- Name of a prerequisit item
+                "box_of_nails"
+            }
+        }
     }
 
     The param skill_translations must have this structure (in the example I have fr and en but you can have more than that):
     {
         en = {
-            my_skill = "My skill",
+            carpenter = "Carpenter",
+            carpenter_skill_roll_failed = "You missed building",
+            carpenter_skill_roll_success = "You succeed building",
         },
         fr = {
-            my_skill = "Ma compétence",
+            carpenter = "Menuisier",
+            carpenter_skill_roll_failed = "Vous n'avez pas réussi votre construction",
+            carpenter_skill_roll_success = "Vous avez réussi votre construction",
         }
     }
 --[[****************************************************]]
@@ -75,7 +91,7 @@ AddEventHandler('ku_skills:registerSkill', function(skill, skill_translations)
             Locales[locale][key] = value
         end
     end
-    
+
     print(('ku_skills: Skill %s has been registered'):format(skill.name))
 end)
 
